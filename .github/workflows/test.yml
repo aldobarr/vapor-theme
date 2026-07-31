@@ -1,0 +1,81 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  contracts:
+    name: Python contracts and workflow lint
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python: ["3.11", "3.13"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+      - name: Install pinned development tools
+        run: python -m pip install --disable-pip-version-check -r requirements-dev.txt
+      - name: Run behavior tests
+        run: python -m unittest discover -v
+      - name: Check Python syntax
+        run: python -m compileall -q vapor_theme tests
+      - name: Check Python types, lint, and formatting
+        run: |
+          python -m mypy
+          python -m ruff check vapor_theme tests
+          python -m ruff format --check vapor_theme tests
+      - name: Check shell scripts
+        run: |
+          shellcheck templates/*.sh tests/integration/*.sh
+      - name: Check workflows
+        run: |
+          go run github.com/rhysd/actionlint/cmd/actionlint@914e7df21a07ef503a81201c76d2b11c789d3fca
+
+  plasma:
+    name: Fedora 44 Plasma 6 runtime
+    runs-on: ubuntu-latest
+    container: fedora:44
+    steps:
+      - name: Install checkout prerequisite
+        run: dnf install -y git
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Install Fedora Plasma test dependencies
+        run: bash tests/integration/install_fedora_plasma_dependencies.sh
+      - name: Fetch immutable pinned source snapshots
+        run: |
+          python -m vapor_theme fetch-sources \
+            --pins upstream/pins.json \
+            --output "$RUNNER_TEMP/vapor-sources"
+      - name: Build and validate the pinned release
+        run: |
+          python -m vapor_theme build \
+            --steam-source "$RUNNER_TEMP/vapor-sources/steam" \
+            --bazzite-source "$RUNNER_TEMP/vapor-sources/bazzite" \
+            --pins upstream/pins.json \
+            --output "$RUNNER_TEMP/Vapor.tar.gz"
+          python -m vapor_theme validate --bundle "$RUNNER_TEMP/Vapor.tar.gz"
+      - name: Exercise native Plasma loaders
+        run: |
+          python -m tests.integration.plasma_runtime_check \
+            "$RUNNER_TEMP/Vapor.tar.gz"
+      - name: Upload runtime diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: plasma-runtime-diagnostics
+          path: tests/integration/diagnostics/
+          if-no-files-found: ignore

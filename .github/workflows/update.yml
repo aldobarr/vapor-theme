@@ -1,0 +1,305 @@
+name: Update from Bazzite stable
+
+on:
+  push:
+    paths:
+      - ".github/workflows/update.yml"
+      - "upstream/pins.json"
+      - "upstream/state.json"
+  schedule:
+    - cron: "23 11 * * 2"
+  workflow_dispatch:
+
+concurrency:
+  group: vapor-upstream-update
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  issues: write
+  id-token: write
+  attestations: write
+
+jobs:
+  update:
+    name: Evaluate, validate, and publish
+    if: github.event_name != 'push' || github.ref_name == github.event.repository.default_branch
+    runs-on: ubuntu-latest
+    env:
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.repository.default_branch }}
+      - name: Record starting default branch revision
+        id: baseline
+        shell: bash
+        run: echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - name: Set up Python
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.13"
+      - name: Resolve the latest stable source snapshots
+        id: sources
+        shell: bash
+        run: |
+          set -euo pipefail
+          work="$RUNNER_TEMP/vapor-update"
+          mkdir -p "$work"
+          gh api repos/ublue-os/bazzite/releases/latest > "$work/release.json"
+          project_release_tags="$work/project-release-tags.txt"
+          gh api --paginate "repos/${{ github.repository }}/releases" \
+            --jq '.[].tag_name' > "$project_release_tags"
+          stable_tag="$(python -m vapor_theme upstream-release-tag \
+            --release-json "$work/release.json")"
+          git clone --filter=blob:none --no-checkout \
+            https://github.com/ublue-os/bazzite.git "$work/bazzite"
+          git -C "$work/bazzite" fetch --depth=1 origin "refs/tags/$stable_tag"
+          git -C "$work/bazzite" checkout --detach FETCH_HEAD
+          steam_tag="$(python -m vapor_theme steam-preset-tag \
+            --bazzite-source "$work/bazzite")"
+          git clone --depth=1 --branch "$steam_tag" \
+            https://gitlab.com/evlaV/steamdeck-kde-presets.git "$work/steam"
+          {
+            echo "root=$work"
+            echo "project_release_tags=$project_release_tags"
+            echo "bazzite_commit=$(git -C "$work/bazzite" rev-parse HEAD)"
+            echo "steam_commit=$(git -C "$work/steam" rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
+      - name: Evaluate updater state machine
+        id: decision
+        shell: bash
+        run: |
+          mkdir -p dist
+          checked_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          project_release_tags="${{ steps.sources.outputs.project_release_tags }}"
+          candidate_version="$(python -m vapor_theme select-release-version \
+            --repository . \
+            --release-json "${{ steps.sources.outputs.root }}/release.json" \
+            --state upstream/state.json \
+            --occupied-release-tags "$project_release_tags")"
+          set +e
+          python -m vapor_theme update \
+            --release-json "${{ steps.sources.outputs.root }}/release.json" \
+            --bazzite-source "${{ steps.sources.outputs.root }}/bazzite" \
+            --steam-source "${{ steps.sources.outputs.root }}/steam" \
+            --bazzite-commit "${{ steps.sources.outputs.bazzite_commit }}" \
+            --steam-commit "${{ steps.sources.outputs.steam_commit }}" \
+            --pins upstream/pins.json \
+            --state upstream/state.json \
+            --artifact dist/Vapor.tar.gz \
+            --plan dist/plan.json \
+            --checked-at "$checked_at" \
+            --candidate-version "$candidate_version"
+          status=$?
+          set -e
+          python -m vapor_theme decision-outputs \
+            --plan dist/plan.json \
+            --updater-status "$status" >> "$GITHUB_OUTPUT"
+      - name: Validate and prepare release assets
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m vapor_theme validate --bundle dist/Vapor.tar.gz
+          python -m vapor_theme prepare-release \
+            --bundle dist/Vapor.tar.gz \
+            --plan dist/plan.json \
+            --output dist/release
+      - name: Gate release in Fedora Plasma 6
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        shell: bash
+        run: |
+          docker run --rm \
+            --volume "$GITHUB_WORKSPACE:/workspace" \
+            --workdir /workspace \
+            fedora:44 \
+            bash -euxo pipefail -c '
+              bash tests/integration/install_fedora_plasma_dependencies.sh
+              python -m tests.integration.plasma_runtime_check dist/Vapor.tar.gz
+            '
+      - name: Configure release bot identity
+        if: steps.decision.outputs.status == '0' && (steps.decision.outputs.action == 'state-only' || steps.decision.outputs.action == 'release')
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+      - name: Commit a tested maintenance heartbeat
+        if: steps.decision.outputs.status == '0' && steps.decision.outputs.action == 'state-only'
+        shell: bash
+        run: |
+          git add upstream/state.json
+          git commit -m "chore: record Bazzite state-only"
+          git push origin "HEAD:refs/heads/${DEFAULT_BRANCH}"
+      - name: Commit and tag the exact tested release state
+        id: release_commit
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.decision.outputs.tag }}"
+          git add upstream/pins.json upstream/state.json
+          git commit -m "chore: release $tag"
+          git tag -a "$tag" -m "Vapor $tag"
+          release_commit="$(git rev-parse HEAD)"
+          echo "commit=$release_commit" >> "$GITHUB_OUTPUT"
+      - name: Attest release artifacts
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        uses: actions/attest@f7c74d28b9d84cb8768d0b8ca14a4bac6ef463e6 # v4.2.0
+        with:
+          subject-path: |
+            dist/release/Vapor-*.tar.gz
+            dist/release/SHA256SUMS
+            dist/release/Vapor-*.provenance.json
+      - name: Publish GitHub release
+        id: publication
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.decision.outputs.tag }}"
+          python -m vapor_theme guard-release-base \
+            --repository . \
+            --remote origin \
+            --branch "$DEFAULT_BRANCH" \
+            --expected-commit "${{ steps.baseline.outputs.commit }}"
+          tag_outputs="$(mktemp)"
+          release_json="$(mktemp)"
+          upload_plan="$(mktemp)"
+          trap 'rm -f "$tag_outputs" "$release_json" "$upload_plan"' EXIT
+          python -m vapor_theme publish-release-tag \
+            --repository . \
+            --remote origin \
+            --tag "$tag" > "$tag_outputs"
+          cat "$tag_outputs" >> "$GITHUB_OUTPUT"
+          tag_object="$(sed -n 's/^tag_object=//p' "$tag_outputs")"
+          if [[ ! "$tag_object" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "invalid release tag object" >&2
+            exit 1
+          fi
+          shopt -s nullglob
+          assets=(
+            dist/release/Vapor-*.tar.gz
+            dist/release/SHA256SUMS
+            dist/release/Vapor-*.provenance.json
+          )
+          if (( ${#assets[@]} != 3 )); then
+            echo "expected exactly three release assets" >&2
+            exit 1
+          fi
+          upload_asset() {
+            local release_id="$1"
+            local asset="$2"
+            local asset_name
+            asset_name="$(basename "$asset")"
+            case "$asset_name" in
+              *[!A-Za-z0-9._-]*) echo "unsafe release asset name: $asset_name" >&2; return 1 ;;
+            esac
+            curl --fail-with-body --silent --show-error \
+              --request POST \
+              --header "Authorization: Bearer ${GH_TOKEN}" \
+              --header "Accept: application/vnd.github+json" \
+              --header "X-GitHub-Api-Version: 2022-11-28" \
+              --header "Content-Type: application/octet-stream" \
+              --data-binary "@${asset}" \
+              "https://uploads.github.com/repos/${{ github.repository }}/releases/${release_id}/assets?name=${asset_name}" \
+              >/dev/null
+          }
+          if gh api "repos/${{ github.repository }}/releases/tags/${tag}" > "$release_json" 2>/dev/null; then
+            echo "release_created=false" >> "$GITHUB_OUTPUT"
+            python -m vapor_theme plan-release-upload \
+              --release-json "$release_json" \
+              --tag "$tag" \
+              --tag-object "$tag_object" \
+              --asset "${assets[0]}" \
+              --asset "${assets[1]}" \
+              --asset "${assets[2]}" > "$upload_plan"
+            release_id="$(sed -n 's/^release_id=//p' "$upload_plan")"
+            case "$release_id" in
+              ''|*[!0-9]*) echo "invalid release database ID" >&2; exit 1 ;;
+            esac
+            while IFS= read -r asset; do
+              [[ "$asset" == asset=* ]] || continue
+              upload_asset "$release_id" "${asset#asset=}"
+            done < "$upload_plan"
+          else
+            marker="$(python -m vapor_theme release-owner-marker \
+              --tag-object "$tag_object")"
+            release_id="$(gh api --method POST "repos/${{ github.repository }}/releases" \
+              -f tag_name="$tag" \
+              -f name="Vapor $tag" \
+              -f body="Automated desktop-only Vapor visuals from the tracked Bazzite stable release. ${marker}" \
+              -F draft=false \
+              -F prerelease=false \
+              --jq .id)"
+            case "$release_id" in
+              ''|*[!0-9]*) echo "invalid release database ID" >&2; exit 1 ;;
+            esac
+            echo "release_id=$release_id" >> "$GITHUB_OUTPUT"
+            echo "release_created=true" >> "$GITHUB_OUTPUT"
+            for asset in "${assets[@]}"; do
+              upload_asset "$release_id" "$asset"
+            done
+          fi
+      - name: Advance the default branch only after publication
+        if: steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0'
+        shell: bash
+        run: |
+          tag="${{ steps.decision.outputs.tag }}"
+          release_commit="${{ steps.release_commit.outputs.commit }}"
+          python -m vapor_theme advance-release-branch \
+            --repository . \
+            --remote origin \
+            --branch "$DEFAULT_BRANCH" \
+            --expected-branch-commit "${{ steps.baseline.outputs.commit }}" \
+            --tag "$tag" \
+            --expected-tag-object "${{ steps.publication.outputs.tag_object }}" \
+            --release-commit "$release_commit"
+      - name: Roll back a publication that lost its branch lease
+        if: failure() && steps.decision.outputs.action == 'release' && steps.decision.outputs.status == '0' && (steps.publication.outputs.tag_created == 'true' || steps.publication.outputs.release_created == 'true')
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${{ steps.decision.outputs.tag }}"
+          release_commit="${{ steps.release_commit.outputs.commit }}"
+          release_id="${{ steps.publication.outputs.release_id }}"
+          rollback_status=0
+          release_cleanup_safe=false
+          if [[ "${{ steps.publication.outputs.tag_created }}" == "true" ]]; then
+            if python -m vapor_theme rollback-release-tag \
+              --repository . \
+              --remote origin \
+              --branch "$DEFAULT_BRANCH" \
+              --tag "$tag" \
+              --expected-commit "$release_commit" \
+              --expected-tag-object "${{ steps.publication.outputs.tag_object }}"; then
+              release_cleanup_safe=true
+            else
+              rollback_status=1
+            fi
+          fi
+          if [[ "${{ steps.publication.outputs.release_created }}" == "true" && "$release_cleanup_safe" == "true" ]]; then
+            if ! gh api --method DELETE "repos/${{ github.repository }}/releases/${release_id}"; then
+              rollback_status=1
+            fi
+          fi
+          exit "$rollback_status"
+      - name: Record a workflow-adapter failure
+        if: failure()
+        shell: bash
+        run: |
+          python -c 'from pathlib import Path; from vapor_theme.updater import write_failure_plan; write_failure_plan(Path("dist/plan.json"), RuntimeError("GitHub workflow adapter failed; inspect the linked workflow run"))'
+      - name: Update the deduplicated automation incident
+        if: always()
+        shell: bash
+        run: |
+          python -m vapor_theme github-incident \
+            --plan dist/plan.json \
+            --repository "${{ github.repository }}" \
+            --run-url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      - name: Report updater failure
+        if: steps.decision.outputs.status != '0'
+        run: exit 1

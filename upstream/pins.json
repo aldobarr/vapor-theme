@@ -1,0 +1,41 @@
+{
+  "bazzite": {
+    "commit": "5420ea4e06c831b20a8a965e82bf354071936059",
+    "repository": "https://github.com/ublue-os/bazzite.git",
+    "stable_release": "0.0"
+  },
+  "inputs": {
+    "bazzite:LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "bazzite:spec_files/steamdeck-kde-presets/LICENSE": "8177f97513213526df2cf6184d8ff986c675afb514d4e68a404010521b880643",
+    "bazzite:spec_files/steamdeck-kde-presets/bazzite_logo.patch": "8bf2b4a915be8fe40981de7f414a2147981ac25206e4c6b5c00b6323fdccb2a7",
+    "bazzite:spec_files/steamdeck-kde-presets/bazzite_logo.svgz": "ef74b3e095d10bf668f1aa45eae80793a41ba7ec318ef5ce9438d9d9be093b0e",
+    "bazzite:spec_files/steamdeck-kde-presets/plasmarc": "c4254050acec02eb85693581b1a33c078c495641bea5fef8961cc1ecd4872499",
+    "bazzite:spec_files/steamdeck-kde-presets/splash.patch": "36cc6865981636b831dd79fe22d0182b26550814d4c2fe92479eaf9010f3a13f",
+    "bazzite:spec_files/steamdeck-kde-presets/steamdeck-kde-presets-desktop.spec": "b2df6291f2d025403beee6bdf27c19b12a060eab89d8e2ba08ae9bab59a2da57",
+    "bazzite:spec_files/steamdeck-kde-presets/ublue.patch": "154373f210bd7de5ae893a64e98580fe051d67b44229fff31495c218aca0d7c4",
+    "bazzite:spec_files/steamdeck-kde-presets/vapor-metadata.patch": "befdba7e4e3dc4ace123cebe41a14b475fac4ea476e25cdb7fbbcdc4fd6dc67d",
+    "bazzite:system_files/desktop/kinoite/usr/share/wallpapers/convergence.jxl": "78761d31ec90bd02b373aa66bb15e5afa145ce936a588e973e9aa71722547085",
+    "bazzite:system_files/overrides/usr/share/icons/hicolor/scalable/places/distributor-logo.svg": "7996f592b8a943114314c15f92bdffacf245a2dc201d525244dcb0a4ad2238d9",
+    "steam:usr/share/color-schemes/Vapor.colors": "19c1c4d88907c2f08bc322659fdedf7c820d05d85f744b099f0ce7e6dcbc737e",
+    "steam:usr/share/plasma/desktoptheme/Vapor/colors": "f8072d099020e746565655ff11424ff251d391dbaa95283c3f14ef2d8f307d85",
+    "steam:usr/share/plasma/desktoptheme/Vapor/metadata.json": "981ee7eb1a3828e620d2f7f6fb5f96f94d6a3b7e45b1a66cfa65ec51415b49f3",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/defaults": "bb8268045d0bb2987b96afbca9e229276159c2c123a424863ada1e86a2ddfe67",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/icons/deck_icon.png": "efde2e0c78b9e1a87a97bfe9d1ae973e2770971dad8f0f1ca37606ef4fc62c1f",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/plasmoidsetupscripts/org.kde.plasma.folder.js": "8d5cb5dd72cd6c4b598a15997b25f9b4574438e417e16a71ad6eb696fdf5c1a8",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/plasmoidsetupscripts/org.kde.plasma.kickoff.js": "ad0c28b9aea37772b70418e0339aace6afc990a9fd04e7530888b5204d99b9e9",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/plasmoidsetupscripts/org.kde.plasma.systemtray.js": "3f64406c5aa622abf5f9da6b34aaccb8c0ab91e3a3c9871ef07d675a2d0631c7",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/previews/preview.png": "6df7f0c00aed4f43d680ded4042be11ad37591c111e1e70ab1ef9169069cc9b7",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/splash/Splash.qml": "88cd90fc0e95bab75774d676924190c4f0390087708a436e4ffb77934d1fb136",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/splash/images/busywidget.svgz": "1087bf3e6fc522a446e2d88a77987a0afa53319e299d6403608bc78af9f41d85",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/splash/images/deck_logo.svgz": "48b2a9b4697fa4caedad9caedf6a848333c72315a76796cad683e5084afd82b9",
+    "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/metadata.json": "1c81855e2e397a54c710c0c20dadb36699a1e7467ddd3b2e55556331b482e4f2"
+  },
+  "project_version": "0.0.1",
+  "schema_version": 1,
+  "source_date_epoch": 0,
+  "steam_presets": {
+    "commit": "33b59c0445d3f07a281006f4921b38003248916f",
+    "repository": "https://gitlab.com/evlaV/steamdeck-kde-presets.git",
+    "tag": "0.30"
+  }
+}

@@ -1,0 +1,9 @@
+.mypy_cache/
+.research-cache/
+.ruff_cache/
+**/__pycache__/
+*.py[cod]
+build
+dist
+docs
+CONTEXT.md

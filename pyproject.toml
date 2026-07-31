@@ -1,0 +1,18 @@
+[project]
+name = "vapor-theme"
+version = "0.0.0"
+description = "Build and maintain Bazzite's desktop-only Vapor theme"
+requires-python = ">=3.11"
+license = "AGPL-3.0-only"
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+files = ["vapor_theme"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 88
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I", "B", "UP", "SIM"]
