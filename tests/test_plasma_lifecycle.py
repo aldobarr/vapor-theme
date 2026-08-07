@@ -7,10 +7,34 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
+from tests.integration import plasma_accent_render_check as accent_renderer
 from tests.integration import plasma_lifecycle_check as lifecycle
 
 
 class PlasmaLifecycleTests(unittest.TestCase):
+    def test_wayland_may_enlarge_the_accent_probe_window(self) -> None:
+        accent_renderer._require_valid_image_dimensions(
+            is_null=False,
+            width=192,
+            height=150,
+        )
+
+    def test_accent_probe_rejects_null_or_undersized_images(self) -> None:
+        for is_null, width, height in (
+            (True, 192, 150),
+            (False, 191, 64),
+            (False, 192, 63),
+        ):
+            with (
+                self.subTest(is_null=is_null, width=width, height=height),
+                self.assertRaisesRegex(RuntimeError, f"{width}x{height}"),
+            ):
+                accent_renderer._require_valid_image_dimensions(
+                    is_null=is_null,
+                    width=width,
+                    height=height,
+                )
+
     def test_accent_renderer_stays_connected_to_the_active_wayland_session(
         self,
     ) -> None:

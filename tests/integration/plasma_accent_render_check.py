@@ -9,6 +9,8 @@ import time
 from pathlib import Path
 
 RENDER_MARKER = "VAPOR_ACCENT_RENDER="
+PROBE_WIDTH = 192
+PROBE_HEIGHT = 64
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -55,6 +57,18 @@ Rectangle {
 """
 
 
+def _require_valid_image_dimensions(
+    *,
+    is_null: bool,
+    width: int,
+    height: int,
+) -> None:
+    if is_null or width < PROBE_WIDTH or height < PROBE_HEIGHT:
+        raise RuntimeError(
+            f"Plasma accent probe rendered an invalid image {width}x{height}"
+        )
+
+
 def run_probe(output: Path) -> dict[str, str]:
     from PyQt6.QtCore import QEventLoop, QUrl
     from PyQt6.QtGui import QColor, QGuiApplication
@@ -79,11 +93,11 @@ def run_probe(output: Path) -> dict[str, str]:
             time.sleep(0.02)
 
         image = view.grabWindow()
-        if image.isNull() or image.width() != 192 or image.height() != 64:
-            raise RuntimeError(
-                "Plasma accent probe rendered an invalid image "
-                f"{image.width()}x{image.height()}"
-            )
+        _require_valid_image_dimensions(
+            is_null=image.isNull(),
+            width=image.width(),
+            height=image.height(),
+        )
         output.parent.mkdir(parents=True, exist_ok=True)
         if not image.save(str(output), "PNG"):
             raise RuntimeError(f"could not save Plasma accent render to {output}")
