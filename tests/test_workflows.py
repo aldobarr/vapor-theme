@@ -83,6 +83,7 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("schedule:", workflow)
         self.assertIn("workflow_dispatch:", workflow)
         for release_recipe_path in (
+            "tests/integration/**",
             "vapor_theme/bundle_contract.py",
             "vapor_theme/compiler.py",
             "vapor_theme/source_contract.py",

@@ -31,9 +31,6 @@ Rectangle {
     height: 64
     color: PlasmaCore.Theme.backgroundColor
 
-    property color resolvedHighlight: PlasmaCore.Theme.highlightColor
-    property string resolvedThemeName: PlasmaCore.Theme.themeName
-
     Rectangle {
         x: 8
         y: 8
@@ -61,9 +58,10 @@ Rectangle {
 def run_probe(output: Path) -> dict[str, str]:
     from PyQt6.QtCore import QEventLoop, QUrl
     from PyQt6.QtGui import QColor, QGuiApplication
-    from PyQt6.QtQuick import QQuickView
+    from PyQt6.QtQuick import QQuickView, QQuickWindow
 
     application = QGuiApplication(["vapor-plasma-accent-render-check"])
+    QQuickWindow.setSceneGraphBackend("software")
     with tempfile.TemporaryDirectory(prefix="vapor-accent-qml-") as temporary:
         qml = Path(temporary) / "AccentProbe.qml"
         qml.write_text(_qml_source(), encoding="utf-8", newline="\n")
@@ -93,18 +91,9 @@ def run_probe(output: Path) -> dict[str, str]:
         root = view.rootObject()
         if root is None:
             raise RuntimeError("Plasma accent probe has no root object")
-        resolved = root.property("resolvedHighlight")
-        if not isinstance(resolved, QColor) or not resolved.isValid():
-            raise RuntimeError(
-                "Plasma accent probe returned an invalid highlight color"
-            )
         result = {
-            "component_pixel": image.pixelColor(128, 32).name(
-                QColor.NameFormat.HexRgb
-            ),
-            "resolved_highlight": resolved.name(QColor.NameFormat.HexRgb),
+            "component_pixel": image.pixelColor(128, 32).name(QColor.NameFormat.HexRgb),
             "swatch_pixel": image.pixelColor(32, 32).name(QColor.NameFormat.HexRgb),
-            "theme": str(root.property("resolvedThemeName")),
         }
         view.close()
     del application

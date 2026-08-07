@@ -6,6 +6,7 @@ on:
       - ".github/workflows/update.yml"
       - "upstream/pins.json"
       - "upstream/state.json"
+      - "tests/integration/**"
       - "vapor_theme/bundle_contract.py"
       - "vapor_theme/compiler.py"
       - "vapor_theme/source_contract.py"
