@@ -187,7 +187,6 @@ def _render_accent(accent: str, output: Path) -> dict[str, str]:
     render_environment.update(
         {
             "LIBGL_ALWAYS_SOFTWARE": "1",
-            "QT_QPA_PLATFORM": "offscreen",
             "QT_QUICK_BACKEND": "software",
         }
     )
