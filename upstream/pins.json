@@ -1,8 +1,8 @@
 {
   "bazzite": {
-    "commit": "5420ea4e06c831b20a8a965e82bf354071936059",
+    "commit": "fb80dd48d613baa6a3f646549b0b9b1ca7d32e1f",
     "repository": "https://github.com/ublue-os/bazzite.git",
-    "stable_release": "44.20260721"
+    "stable_release": "44.20260802"
   },
   "inputs": {
     "bazzite:LICENSE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
@@ -30,9 +30,9 @@
     "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/contents/splash/images/deck_logo.svgz": "48b2a9b4697fa4caedad9caedf6a848333c72315a76796cad683e5084afd82b9",
     "steam:usr/share/plasma/look-and-feel/com.valve.vapor.deck.desktop/metadata.json": "1c81855e2e397a54c710c0c20dadb36699a1e7467ddd3b2e55556331b482e4f2"
   },
-  "project_version": "44.20260721.1",
+  "project_version": "44.20260802.1",
   "schema_version": 1,
-  "source_date_epoch": 1784662425,
+  "source_date_epoch": 1785645299,
   "steam_presets": {
     "commit": "33b59c0445d3f07a281006f4921b38003248916f",
     "repository": "https://gitlab.com/evlaV/steamdeck-kde-presets.git",
