@@ -240,11 +240,44 @@ def _require_dominant_channel(value: str, channel: int, *, label: str) -> None:
         raise RuntimeError(f"{label} did not render the requested hue: {value}")
 
 
-def _exercise_visual_accent_updates(temporary: Path) -> None:
-    renders = temporary / "accent-renders"
-    red = _render_accent("#ff1744", renders / "red.png")
-    green = _render_accent("#00c853", renders / "green.png")
+def _require_render_matches_resolved(
+    render: dict[str, str],
+    *,
+    label: str,
+) -> None:
+    try:
+        resolved = render["resolved_highlight"]
+        captured = render["swatch_pixel"]
+    except KeyError as error:
+        raise RuntimeError(f"{label} render omitted {error.args[0]!r}") from error
+    if resolved.lower() != captured.lower():
+        raise RuntimeError(f"{label} resolved {resolved} but captured {captured}")
 
+
+def _write_render_result(output: Path, result: dict[str, str]) -> None:
+    metadata = output.with_suffix(".json")
+    metadata.parent.mkdir(parents=True, exist_ok=True)
+    metadata.write_text(
+        json.dumps(result, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+
+
+def _exercise_visual_accent_updates(temporary: Path) -> None:
+    diagnostics = os.environ.get("VAPOR_DIAGNOSTICS_DIR")
+    renders = (
+        Path(diagnostics) if diagnostics is not None else temporary
+    ) / "accent-renders"
+    red_output = renders / "red.png"
+    red = _render_accent("#ff1744", red_output)
+    _write_render_result(red_output, red)
+    green_output = renders / "green.png"
+    green = _render_accent("#00c853", green_output)
+    _write_render_result(green_output, green)
+
+    _require_render_matches_resolved(red, label="red Plasma highlight")
+    _require_render_matches_resolved(green, label="green Plasma highlight")
     _require_dominant_channel(
         red["swatch_pixel"],
         0,

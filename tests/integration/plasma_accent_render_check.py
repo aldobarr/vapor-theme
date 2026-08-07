@@ -7,6 +7,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from typing import Any
 
 RENDER_MARKER = "VAPOR_ACCENT_RENDER="
 PROBE_WIDTH = 192
@@ -32,6 +33,7 @@ Rectangle {
     width: 192
     height: 64
     color: PlasmaCore.Theme.backgroundColor
+    property color resolvedHighlight: PlasmaCore.Theme.highlightColor
 
     Rectangle {
         x: 8
@@ -69,8 +71,30 @@ def _require_valid_image_dimensions(
         )
 
 
+def _capture_item_image(
+    root_item: Any,
+    application: Any,
+    requested_size: Any,
+    *,
+    timeout: float,
+) -> Any:
+    grab_result = root_item.grabToImage(requested_size)
+    if grab_result is None:
+        raise RuntimeError("Plasma accent probe could not start its QML item capture")
+
+    deadline = time.monotonic() + timeout
+    while True:
+        application.processEvents()
+        image = grab_result.image()
+        if not image.isNull():
+            return image
+        if time.monotonic() >= deadline:
+            raise RuntimeError("Plasma accent probe QML item capture timed out")
+        time.sleep(0.02)
+
+
 def run_probe(output: Path) -> dict[str, str]:
-    from PyQt6.QtCore import QEventLoop, QUrl
+    from PyQt6.QtCore import QSize, QUrl
     from PyQt6.QtGui import QColor, QGuiApplication
     from PyQt6.QtQuick import QQuickView, QQuickWindow
 
@@ -87,12 +111,15 @@ def run_probe(output: Path) -> dict[str, str]:
             raise RuntimeError(f"Plasma accent probe QML did not load: {errors}")
         view.show()
 
-        deadline = time.monotonic() + 3
-        while time.monotonic() < deadline:
-            application.processEvents(QEventLoop.ProcessEventsFlag.AllEvents, 50)
-            time.sleep(0.02)
-
-        image = view.grabWindow()
+        root = view.rootObject()
+        if root is None:
+            raise RuntimeError("Plasma accent probe has no root object")
+        image = _capture_item_image(
+            root,
+            application,
+            QSize(PROBE_WIDTH, PROBE_HEIGHT),
+            timeout=3,
+        )
         _require_valid_image_dimensions(
             is_null=image.isNull(),
             width=image.width(),
@@ -102,11 +129,17 @@ def run_probe(output: Path) -> dict[str, str]:
         if not image.save(str(output), "PNG"):
             raise RuntimeError(f"could not save Plasma accent render to {output}")
 
-        root = view.rootObject()
-        if root is None:
-            raise RuntimeError("Plasma accent probe has no root object")
+        resolved_highlight = root.property("resolvedHighlight")
+        if (
+            not isinstance(resolved_highlight, QColor)
+            or not resolved_highlight.isValid()
+        ):
+            raise RuntimeError(
+                "Plasma accent probe did not resolve Theme.highlightColor"
+            )
         result = {
             "component_pixel": image.pixelColor(128, 32).name(QColor.NameFormat.HexRgb),
+            "resolved_highlight": resolved_highlight.name(QColor.NameFormat.HexRgb),
             "swatch_pixel": image.pixelColor(32, 32).name(QColor.NameFormat.HexRgb),
         }
         view.close()
