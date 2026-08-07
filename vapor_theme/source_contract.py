@@ -10,6 +10,7 @@ from vapor_theme.io_utils import sha256_file
 from vapor_theme.records import SourcePins
 
 DESKTOP_SPEC = "spec_files/steamdeck-kde-presets/steamdeck-kde-presets-desktop.spec"
+PROJECT_THEME_RECIPE = "system-color-delegation-v1"
 THEME_PATCH_FILES = ("usr/share/color-schemes/Vapor.colors",)
 THEME_PATCH_DIRECTORIES = (
     "usr/share/plasma/desktoptheme/Vapor",
@@ -34,6 +35,7 @@ NON_VISUAL_FINGERPRINT_INPUTS = {
     "bazzite:LICENSE",
     "bazzite:spec_files/steamdeck-kde-presets/LICENSE",
     f"bazzite:{DESKTOP_SPEC}",
+    "steam:usr/share/plasma/desktoptheme/Vapor/colors",
 }
 
 
@@ -189,6 +191,7 @@ def theme_fingerprint(
         {
             "ordered_theme_patches": ordered_theme_patches,
             "payload_inputs": payload_inputs,
+            "project_theme_recipe": PROJECT_THEME_RECIPE,
             "steam_presets": {
                 "commit": steam_commit,
                 "tag": steam_preset_tag(bazzite_source),

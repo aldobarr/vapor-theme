@@ -454,6 +454,44 @@ class CompilerIdentityTests(unittest.TestCase):
                     f"forbidden release entry contains {forbidden!r}: {names}",
                 )
 
+    def test_plasma_style_delegates_accent_colors_to_system_settings(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            steam, bazzite, pins = create_source_fixture(temporary)
+            archive = temporary / "vapor.tar.gz"
+
+            result = subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "vapor_theme",
+                    "build",
+                    "--steam-source",
+                    str(steam),
+                    "--bazzite-source",
+                    str(bazzite),
+                    "--pins",
+                    str(pins),
+                    "--output",
+                    str(archive),
+                ],
+                cwd=REPO_ROOT,
+                text=True,
+                capture_output=True,
+                check=False,
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            with tarfile.open(archive, "r:gz") as release:
+                names = set(release.getnames())
+
+            root = "vapor-44.20260730.1/payload"
+            self.assertNotIn(
+                f"{root}/plasma/desktoptheme/Vapor/colors",
+                names,
+            )
+            self.assertIn(f"{root}/color-schemes/Vapor.colors", names)
+
     def test_builds_reproducible_portable_visual_bundle(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary = Path(temporary_directory)

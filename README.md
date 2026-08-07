@@ -74,6 +74,10 @@ and apply its appearance. Normal appearance application changes the color
 scheme, Plasma Style, and splash. It does not reset panels, widgets, desktop
 containments, a custom desktop wallpaper, or lock-screen settings.
 
+Vapor's Plasma Style deliberately omits a private Plasma color palette, so
+desktop UI such as the application launcher follows the global accent color
+selected in System Settings.
+
 Convergence is installed as a normal wallpaper named **Convergence**. Choose
 it manually for the desktop or lock screen if desired. Vapor never changes an
 existing lock-screen selection.

@@ -554,6 +554,10 @@ def run_probe(bundle: Path) -> None:
             raise RuntimeError(
                 "install.sh changed KDE configuration or activated Vapor"
             )
+        if (data_home / "plasma" / "desktoptheme" / "Vapor" / "colors").exists():
+            raise RuntimeError(
+                "Vapor Plasma Style overrides the user's system color settings"
+            )
 
         look_and_feel = _run(
             "list native Global Themes",

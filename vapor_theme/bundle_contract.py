@@ -12,7 +12,6 @@ EXPECTED_PAYLOAD_FILES = frozenset(
     {
         "color-schemes/Vapor.colors",
         f"icons/hicolor/scalable/places/{LAUNCHER_ICON}.svg",
-        "plasma/desktoptheme/Vapor/colors",
         "plasma/desktoptheme/Vapor/metadata.json",
         "plasma/desktoptheme/Vapor/plasmarc",
         f"plasma/look-and-feel/{GLOBAL_THEME_ID}/contents/defaults",

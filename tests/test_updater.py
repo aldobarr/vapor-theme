@@ -21,11 +21,13 @@ def expected_theme_fingerprint(
     *,
     bazzite_source: Path,
     steam_commit: str = "dddddddddddddddddddddddddddddddddddddddd",
+    project_theme_recipe: str | None = "system-color-delegation-v1",
 ) -> str:
     non_visual_bazzite_inputs = {
         "bazzite:LICENSE",
         "bazzite:spec_files/steamdeck-kde-presets/LICENSE",
         f"bazzite:{DESKTOP_SPEC_PATH}",
+        "steam:usr/share/plasma/desktoptheme/Vapor/colors",
     }
     relevant = {
         name: digest
@@ -53,16 +55,19 @@ def expected_theme_fingerprint(
     )
     if steam_tag_match is None:
         raise AssertionError("fixture desktop spec has no Steam preset tag")
+    identity = {
+        "ordered_theme_patches": ordered_theme_patches,
+        "payload_inputs": relevant,
+        "steam_presets": {
+            "commit": steam_commit,
+            "tag": steam_tag_match.group(1),
+        },
+    }
+    if project_theme_recipe is not None:
+        identity["project_theme_recipe"] = project_theme_recipe
     return hashlib.sha256(
         json.dumps(
-            {
-                "ordered_theme_patches": ordered_theme_patches,
-                "payload_inputs": relevant,
-                "steam_presets": {
-                    "commit": steam_commit,
-                    "tag": steam_tag_match.group(1),
-                },
-            },
+            identity,
             sort_keys=True,
             separators=(",", ":"),
         ).encode("utf-8")
@@ -262,6 +267,82 @@ class UpdaterTests(unittest.TestCase):
             self.assertEqual(state.read_bytes(), updated_state_bytes)
             self.assertEqual(pins.read_bytes(), pins_after_first)
             self.assertFalse(artifact.exists())
+
+    def test_system_color_delegation_migration_creates_a_new_release(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            temporary = Path(temporary_directory)
+            steam, bazzite, pins = create_source_fixture(temporary)
+            pinned = json.loads(pins.read_text(encoding="utf-8"))
+            legacy_fingerprint = expected_theme_fingerprint(
+                pinned["inputs"],
+                bazzite_source=bazzite,
+                project_theme_recipe=None,
+            )
+            state = temporary / "state.json"
+            state.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "last_checked_stable": "44.20260730",
+                        "heartbeat_month": "2026-08",
+                        "theme_fingerprint": legacy_fingerprint,
+                        "version": "44.20260730.1",
+                    },
+                    indent=2,
+                    sort_keys=True,
+                )
+                + "\n",
+                encoding="utf-8",
+                newline="\n",
+            )
+            release = temporary / "release.json"
+            release.write_text(
+                json.dumps(
+                    {
+                        "draft": False,
+                        "prerelease": False,
+                        "published_at": "2026-07-30T12:00:00Z",
+                        "tag_name": "44.20260730",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            artifact = temporary / "vapor.tar.gz"
+            plan = temporary / "plan.json"
+
+            result = run_cli(
+                "update",
+                "--release-json",
+                str(release),
+                "--bazzite-source",
+                str(bazzite),
+                "--steam-source",
+                str(steam),
+                "--bazzite-commit",
+                "cccccccccccccccccccccccccccccccccccccccc",
+                "--steam-commit",
+                "dddddddddddddddddddddddddddddddddddddddd",
+                "--pins",
+                str(pins),
+                "--state",
+                str(state),
+                "--artifact",
+                str(artifact),
+                "--plan",
+                str(plan),
+                "--checked-at",
+                "2026-08-06T13:00:00Z",
+            )
+
+            self.assertEqual(result.returncode, 0, result.stderr)
+            decision = json.loads(plan.read_text(encoding="utf-8"))
+            self.assertEqual(decision["action"], "release")
+            self.assertEqual(decision["version"], "44.20260730.2")
+            self.assertNotEqual(
+                decision["theme_fingerprint"],
+                legacy_fingerprint,
+            )
+            self.assertTrue(artifact.is_file())
 
     def test_steam_revision_change_releases_identical_tracked_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

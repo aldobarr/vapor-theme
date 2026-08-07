@@ -187,13 +187,7 @@ def _copy_plasma_style(
         "spec_files/steamdeck-kde-presets/plasmarc",
     )
     _copy_text(plasmarc, destination / "plasmarc")
-    colors = destination / "colors"
-    if colors.exists():
-        colors.write_text(
-            colors.read_text(encoding="utf-8"),
-            encoding="utf-8",
-            newline="\n",
-        )
+    (destination / "colors").unlink(missing_ok=True)
 
 
 def _copy_color_scheme(steam_source: Path, payload: Path) -> None:

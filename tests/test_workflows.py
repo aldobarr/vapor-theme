@@ -82,6 +82,12 @@ class WorkflowContractTests(unittest.TestCase):
 
         self.assertIn("schedule:", workflow)
         self.assertIn("workflow_dispatch:", workflow)
+        for release_recipe_path in (
+            "vapor_theme/bundle_contract.py",
+            "vapor_theme/compiler.py",
+            "vapor_theme/source_contract.py",
+        ):
+            self.assertIn(f'- "{release_recipe_path}"', workflow)
         self.assertIn("group: vapor-upstream-update", workflow)
         self.assertIn("cancel-in-progress: false", workflow)
         for permission in (
