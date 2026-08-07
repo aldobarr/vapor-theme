@@ -1,7 +1,8 @@
 {
-  "heartbeat_month": "1970-01",
-  "last_checked_stable": "0.0",
+  "heartbeat_month": "2026-08",
+  "last_checked_stable": "44.20260802",
+  "last_successful_check": "2026-08-04T13:12:42Z",
   "schema_version": 1,
-  "theme_fingerprint": "bootstrap-unreleased",
-  "version": "0.0.1"
+  "theme_fingerprint": "f57327f609fa741ad0319de32cdc1c8075528624b4b029c6542e05e8b7921719",
+  "version": "44.20260721.1"
 }
