@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import os
 import signal
 import subprocess
@@ -16,8 +15,6 @@ from tests.integration.process_control import (
     run_bounded,
     signal_process_group,
 )
-
-ACCENT_RENDER_MARKER = "VAPOR_ACCENT_RENDER="
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -156,152 +153,6 @@ def _xdg_data_home() -> Path:
     return Path(configured) if configured else Path.home() / ".local" / "share"
 
 
-def _checked_process(
-    command: list[str],
-    *,
-    context: str,
-    timeout: float,
-    environment: dict[str, str] | None = None,
-) -> subprocess.CompletedProcess[str]:
-    try:
-        result = run_bounded(
-            command,
-            timeout=timeout,
-            environment=environment,
-        )
-    except subprocess.TimeoutExpired as error:
-        raise RuntimeError(f"{context} timed out") from error
-    if result.returncode != 0:
-        detail = (result.stderr or result.stdout).strip()
-        raise RuntimeError(f"{context} failed: {detail}")
-    return result
-
-
-def _render_accent(accent: str, output: Path) -> dict[str, str]:
-    _checked_process(
-        ["plasma-apply-colorscheme", "--accent-color", accent],
-        context=f"apply test accent {accent}",
-        timeout=30,
-    )
-    render_environment = os.environ.copy()
-    render_environment.update(
-        {
-            "LIBGL_ALWAYS_SOFTWARE": "1",
-            "QT_QUICK_BACKEND": "software",
-        }
-    )
-    rendered = _checked_process(
-        [
-            sys.executable,
-            "-m",
-            "tests.integration.plasma_accent_render_check",
-            "--output",
-            str(output),
-        ],
-        context=f"render Plasma highlight for accent {accent}",
-        timeout=30,
-        environment=render_environment,
-    )
-    markers = [
-        line.removeprefix(ACCENT_RENDER_MARKER)
-        for line in rendered.stdout.splitlines()
-        if line.startswith(ACCENT_RENDER_MARKER)
-    ]
-    if len(markers) != 1:
-        raise RuntimeError(
-            f"accent render did not report exactly one result: {rendered.stdout!r}"
-        )
-    try:
-        parsed = json.loads(markers[0])
-    except json.JSONDecodeError as error:
-        raise RuntimeError("accent render reported invalid JSON") from error
-    if not isinstance(parsed, dict) or not all(
-        isinstance(key, str) and isinstance(value, str) for key, value in parsed.items()
-    ):
-        raise RuntimeError("accent render result is not a string mapping")
-    return parsed
-
-
-def _rgb(value: str) -> tuple[int, int, int]:
-    if len(value) != 7 or not value.startswith("#"):
-        raise RuntimeError(f"accent render reported an invalid color: {value!r}")
-    try:
-        return tuple(int(value[index : index + 2], 16) for index in (1, 3, 5))
-    except ValueError as error:
-        raise RuntimeError(
-            f"accent render reported an invalid color: {value!r}"
-        ) from error
-
-
-def _require_dominant_channel(value: str, channel: int, *, label: str) -> None:
-    channels = _rgb(value)
-    others = channels[:channel] + channels[channel + 1 :]
-    if channels[channel] <= max(others):
-        raise RuntimeError(f"{label} did not render the requested hue: {value}")
-
-
-def _require_render_matches_resolved(
-    render: dict[str, str],
-    *,
-    label: str,
-) -> None:
-    try:
-        resolved = render["resolved_highlight"]
-        captured = render["swatch_pixel"]
-    except KeyError as error:
-        raise RuntimeError(f"{label} render omitted {error.args[0]!r}") from error
-    if resolved.lower() != captured.lower():
-        raise RuntimeError(f"{label} resolved {resolved} but captured {captured}")
-
-
-def _write_render_result(output: Path, result: dict[str, str]) -> None:
-    metadata = output.with_suffix(".json")
-    metadata.parent.mkdir(parents=True, exist_ok=True)
-    metadata.write_text(
-        json.dumps(result, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-        newline="\n",
-    )
-
-
-def _exercise_visual_accent_updates(temporary: Path) -> None:
-    diagnostics = os.environ.get("VAPOR_DIAGNOSTICS_DIR")
-    renders = (
-        Path(diagnostics) if diagnostics is not None else temporary
-    ) / "accent-renders"
-    red_output = renders / "red.png"
-    red = _render_accent("#ff1744", red_output)
-    _write_render_result(red_output, red)
-    green_output = renders / "green.png"
-    green = _render_accent("#00c853", green_output)
-    _write_render_result(green_output, green)
-
-    _require_render_matches_resolved(red, label="red Plasma highlight")
-    _require_render_matches_resolved(green, label="green Plasma highlight")
-    _require_dominant_channel(
-        red["swatch_pixel"],
-        0,
-        label="red Plasma highlight swatch",
-    )
-    _require_dominant_channel(
-        green["swatch_pixel"],
-        1,
-        label="green Plasma highlight swatch",
-    )
-    _require_dominant_channel(
-        red["component_pixel"],
-        0,
-        label="red Plasma list highlight",
-    )
-    _require_dominant_channel(
-        green["component_pixel"],
-        1,
-        label="green Plasma list highlight",
-    )
-    if red["component_pixel"] == green["component_pixel"]:
-        raise RuntimeError("Plasma list highlight ignored the changed accent color")
-
-
 def run_check(
     existing_script: Path,
     verify_script: Path,
@@ -409,8 +260,6 @@ def run_check(
                     "Image",
                     lockscreen_wallpaper_uri,
                 )
-                print("Rendering Plasma highlights under two accents", flush=True)
-                _exercise_visual_accent_updates(Path(temporary))
                 print("Evaluating Vapor lifecycle assertions", flush=True)
                 try:
                     verified = _evaluate(

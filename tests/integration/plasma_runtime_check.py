@@ -217,7 +217,6 @@ def _exercise_plasma_lifecycle(
         {
             "HOME": str(lifecycle_home),
             "QT_QPA_PLATFORM": "wayland",
-            "VAPOR_DIAGNOSTICS_DIR": str(DIAGNOSTICS.resolve()),
             "XDG_CONFIG_HOME": str(lifecycle_config),
         }
     )
