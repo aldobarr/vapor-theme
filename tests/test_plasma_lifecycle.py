@@ -13,6 +13,19 @@ from tests.integration import plasma_lifecycle_check as lifecycle
 
 
 class PlasmaLifecycleTests(unittest.TestCase):
+    def test_accent_probe_uses_plasma_6s_attached_color_api(self) -> None:
+        qml = accent_renderer._qml_source()
+
+        self.assertIn("import org.kde.kirigami as Kirigami", qml)
+        self.assertIn(
+            "property string resolvedHighlight: "
+            "Kirigami.Theme.highlightColor.toString()",
+            qml,
+        )
+        self.assertIn("color: Kirigami.Theme.backgroundColor", qml)
+        self.assertIn("color: Kirigami.Theme.highlightColor", qml)
+        self.assertNotIn("PlasmaCore.Theme.highlightColor", qml)
+
     def test_accent_probe_captures_the_qml_item_not_the_window_clear_buffer(
         self,
     ) -> None:

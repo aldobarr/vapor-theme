@@ -25,22 +25,22 @@ def _parser() -> argparse.ArgumentParser:
 def _qml_source() -> str:
     return """\
 import QtQuick
-import org.kde.plasma.core as PlasmaCore
+import org.kde.kirigami as Kirigami
 import org.kde.plasma.extras as PlasmaExtras
 
 Rectangle {
     id: root
     width: 192
     height: 64
-    color: PlasmaCore.Theme.backgroundColor
-    property color resolvedHighlight: PlasmaCore.Theme.highlightColor
+    color: Kirigami.Theme.backgroundColor
+    property string resolvedHighlight: Kirigami.Theme.highlightColor.toString()
 
     Rectangle {
         x: 8
         y: 8
         width: 48
         height: 48
-        color: PlasmaCore.Theme.highlightColor
+        color: Kirigami.Theme.highlightColor
     }
 
     Item {
@@ -130,16 +130,19 @@ def run_probe(output: Path) -> dict[str, str]:
             raise RuntimeError(f"could not save Plasma accent render to {output}")
 
         resolved_highlight = root.property("resolvedHighlight")
-        if (
-            not isinstance(resolved_highlight, QColor)
-            or not resolved_highlight.isValid()
-        ):
+        if not isinstance(resolved_highlight, str):
             raise RuntimeError(
                 "Plasma accent probe did not resolve Theme.highlightColor"
             )
+        resolved_color = QColor(resolved_highlight)
+        if not resolved_color.isValid():
+            raise RuntimeError(
+                "Plasma accent probe resolved an invalid Theme.highlightColor: "
+                f"{resolved_highlight!r}"
+            )
         result = {
             "component_pixel": image.pixelColor(128, 32).name(QColor.NameFormat.HexRgb),
-            "resolved_highlight": resolved_highlight.name(QColor.NameFormat.HexRgb),
+            "resolved_highlight": resolved_color.name(QColor.NameFormat.HexRgb),
             "swatch_pixel": image.pixelColor(32, 32).name(QColor.NameFormat.HexRgb),
         }
         view.close()
