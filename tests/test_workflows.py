@@ -40,6 +40,9 @@ class WorkflowContractTests(unittest.TestCase):
         self.assertIn("contents: read", workflow)
         self.assertNotIn("contents: write", workflow)
         self.assertIn("runs-on: ubuntu-latest", workflow)
+        self.assertIn('python-version: "3.14"', workflow)
+        self.assertNotIn("matrix:", workflow)
+        self.assertNotIn("${{ matrix.python }}", workflow)
         self.assertIn("container: fedora:44", workflow)
         self.assertIn(
             "bash tests/integration/install_fedora_plasma_dependencies.sh",
@@ -82,6 +85,7 @@ class WorkflowContractTests(unittest.TestCase):
 
         self.assertIn("schedule:", workflow)
         self.assertIn("workflow_dispatch:", workflow)
+        self.assertIn('python-version: "3.14"', workflow)
         for release_recipe_path in (
             "tests/integration/**",
             "vapor_theme/bundle_contract.py",
